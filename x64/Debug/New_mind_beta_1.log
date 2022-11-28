@@ -1,4 +1,0 @@
-﻿  New_mind_beta_1.cpp
-B:\Git_Repositories\Game_NEW_MIND_Betta.1\New_mind_beta_1.cpp(68,11): warning C4200: nonstandard extension used: zero-sized array in struct/union
-B:\Git_Repositories\Game_NEW_MIND_Betta.1\New_mind_beta_1.cpp(68,11): message : This member will be ignored by a defaulted constructor or copy/move assignment operator
-  New_mind_beta_1.vcxproj -> B:\Git_Repositories\Game_NEW_MIND_Betta.1\x64\Debug\New_mind_beta_1.exe
