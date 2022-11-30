@@ -7,10 +7,11 @@
 
 using namespace std;
 
+//Ћокаци€ игры
 struct Room {
 	string short_desc;
-	string long_desc;	// откуда брать это описание?
-	int battle_size;	// откуда брать этот размер?
+	string long_desc;	// откуда брать это описание? -из файла locations.txt
+	int battle_size;	// откуда брать этот размер? -—тавить константой, пока 20
 	Room* north;
 	Room* south;
 	Room* west;
@@ -19,11 +20,13 @@ struct Room {
 	Room* up;
 };
 
+//-Ћучше названи€ в перечислении с большой буквы
 enum class Weapon {
-	roboticRevolver,
-	cryoKnife,
+	roboticRevolver, //роботизированный револьвер
+	cryoKnife,       //крио нож
 };
 
+//ћодель геро€
 struct Hero {
 	Weapon selectedWeapon;
 	Room* location;
@@ -31,12 +34,15 @@ struct Hero {
 	int HP;
 };
 
-enum class Navigation {
-	patrolling,
+//ћодель движени€ врагов
+//-прокомментируй как расшыфровываютс€ типы и ожидаемое поведение
+enum class MonsterNavigation {
+	patrolling, 
 	standing,
 	chasing,
 };
 
+//—тиль перечислений надо выбрать один, тут snake_case
 enum class BattleBehavior {
 	shooting_preparation,
 	geting_close,
@@ -44,7 +50,7 @@ enum class BattleBehavior {
 	stand,
 };
 
-enum class Type {
+enum class MonsterType {
 	Stormtrooper,
 	Firetrooper,
 	Level_Boss,
@@ -52,20 +58,20 @@ enum class Type {
 };
 
 struct Monsters {
-	int HP = 0;
+	int HP = 0; 
 	int gives_energy_crystals = 0;
-	Type type;
+	MonsterType type;
 	Room* location;
-	Navigation navigation_state;
+	MonsterNavigation navigation_state;
 	bool is_pursuer = false;
 	BattleBehavior behavor_state;
 };
 
 struct Map {
-	Room rooms[53];	// размер массива равен числу комнат на крте 53?
+	Room* rooms;	// размер массива равен числу комнат на крте 53?//-сделай динамическим
 	Room* start_room;
 	Hero hero;
-	Monsters monsters[];
+	Monsters* monsters; //-динамический массив
 };
 
 ////получить список всех моснтров на локации
@@ -119,7 +125,9 @@ Map createGameMap() {
 		cout << "File is not found!" << endl;
 	} else {
 		string line, word;
-		while (!file.eof()) {
+		while (!file.eof()) { 
+			//тут не так, надо посчитать сколько строчек и создать динамический массив такого размера
+			//мы заранее не знаем, сколько комнат
 			for (int i = 0; i < sizeof(map.rooms) / sizeof(map.rooms[0]); ++i) {
 				//for (int j = 0; j < 15; ++j) {
 					file >> word;
