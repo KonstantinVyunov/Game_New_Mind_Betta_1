@@ -296,7 +296,7 @@ processBattle(hero, monsters_list)
 
 ## Приложение 1. Карта местности
 
-![graph](gpaph.png)
+![graph](graph.png)
 
 ## Приложение 2. Команды игры
 
