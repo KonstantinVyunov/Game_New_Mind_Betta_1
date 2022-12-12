@@ -94,10 +94,12 @@ enum class ConnectionsFile {
 
 // Обобщающая модель игры
 struct Map {
-	Room* room;				// Сводная модель описания всех локаций игры
+	Room* rooms;				// Сводная модель описания всех локаций игры
+	int totalRooms;				//надо знать сколько комнат наделали
 	Room* game_start_room;	// Локация начала игры ГГ
 	Hero hero;				// Сводная модель описания ГГ
 	Monsters* monsters;		// Сводная модель описания всех монстров в игре
+	int totalMonsters;      //Всего монстров
 };
 
 void fileOpenCheck(ifstream& file_locations, ifstream& file_connections) {
@@ -110,6 +112,7 @@ void fileOpenCheck(ifstream& file_locations, ifstream& file_connections) {
 	return;
 }
 
+//TODO: сделать правильный подсчет комнат сколько строк (без заголовока, столько комнат)
 const int countRooms(ifstream& file_locations) {
 	const int num_of_reading_block = 9; // each line has 9 blocks of reading
 	int counter_reading_block = 0;
@@ -120,31 +123,47 @@ const int countRooms(ifstream& file_locations) {
 		++counter_reading_block;
 	}
 	const int rooms_arr_length = (counter_reading_block / num_of_reading_block);
-	//cout << counter_reading_block <<  " - " << rooms_arr_length << endl;
-	file_locations.close();
+	cout << counter_reading_block <<  " - " << rooms_arr_length << endl;
+	//file_locations.close(); //TODO: Нельзя тут close! Иначе надо open с именем файла
 	return rooms_arr_length;
 }
 
-// Question: не получается корректно передать аргументами ifstream &file_locations, ifstream &file_connections!!!
-// происходит чтение пустых полей ...
-
-Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifstream &file_connections*/) {
+Room* modelRoom(Map &map, int rooms_arr_length , ifstream &file_locations, ifstream &file_connections) {
 	const int num_of_location_fields = 9; // each location line has 9 blocks of reading
 	const int num_of_connection_fields = 3; // each connection line has 3 blocks of reading
-	map.room = new Room[rooms_arr_length];
+	map.rooms = new Room[rooms_arr_length];
 	map.monsters = new Monsters[100]; // Let's take an array of 100 units.
+	int currMonsterPos = 0;// индекс монстров
 
-	ifstream file_locations("locations.txt"); //Help needed: хочется получать из ургументов функции
 	vector<string> temp_line_location;
 	string temp_location_field;
 	int monsters_counter = 0;
+	//TODO: лучше не завязываться под размер массива. 
+	//Первый цикл должен делать getline() - собирать новые строки, 
+	//второй цикл из строк вытаскивать части:
+	//while (!file_locations.eof()) {
+	//   string location_fields;
+	//   getline(file_locations, location_fields);
+	//   std::stringstream ss(location_fields); //поток считывания из строки, как из файла
+	//   string field;
+	//   while (ss.getline(location_fields, field, ';')) {
+	//      temp_line_location.push_back(field);
+	//   }
+	//   //Тут мы проверим размер числа полей и проведем другие проверки параметров, чтобы карта собралась прапвильно
+	//   //НапримерЮ, что id - числовой идентификатор, он влезает в карту, что строки непустые с описанием
+	//}
 	for (int i = 0; i < rooms_arr_length; ++i) {
 		for (int j = 0; j < num_of_location_fields; ++j) {
 			getline(file_locations, temp_location_field, ';');
 			temp_line_location.push_back(temp_location_field);
 		}
-		map.room[i].short_desc	= temp_line_location[(int)LocationsFile::ShortDescription];
-		map.room[i].long_desc	= temp_line_location[(int)LocationsFile::LongDescription];
+
+		//TODO: после парсинга надо наполнить локальную переменную типа Room значениями, чтобы не было много:
+		//длиннющих строк - temp_line_location[(int)LocationsFile::ShortDescription];
+		//Будет map.rooms[i].short_desc	= currentRoom.short_desc
+
+		map.rooms[i].short_desc	= temp_line_location[(int)LocationsFile::ShortDescription];
+		map.rooms[i].long_desc	= temp_line_location[(int)LocationsFile::LongDescription];
 
 		//СЧИТЫВАЕМ И ЗАПИСЫВАЕМ МОНСТРОВ
 		//HELP NEEDED: Монстры очевидно записываются в массив некоректно по индексу и типу монстра.
@@ -153,9 +172,14 @@ Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifs
 			const int num_shooters = stoi(temp_line_location[(int)LocationsFile::NumShooters]);
 			//cout << "Shooters: " << num_shooters << endl;
 			for (int k = 0; k < num_shooters; ++k) {
+				//TODO: k - локальная переменная, для этой команты всё хорошо
+				//Но записывать надо по индексу currMonsterPos - который глобальный для всех комнат
+				// map.monsters[currMonsterPos].type = MonsterType::Shooter;
+				// ...
+				// currMonsterPos++; //увеличиваем
 				map.monsters[k].type = MonsterType::Shooter;
 				//cout << (int)map.monsters[k].type << endl;
-				map.monsters[k].location = &map.room[i];
+				map.monsters[k].location = &map.rooms[i];
 				++monsters_counter;
 			}
 		}
@@ -166,7 +190,7 @@ Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifs
 			for (int k = 0; k < num_stormtrooper; ++k) {
 				map.monsters[k].type = MonsterType::Stormtrooper;
 				//cout << (int)map.monsters[k].type << endl;
-				map.monsters[k].location = &map.room[i];
+				map.monsters[k].location = &map.rooms[i];
 				++monsters_counter;
 			}
 		}
@@ -177,15 +201,13 @@ Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifs
 			for (int k = 0; k < num_firetroopers; ++k) {
 				map.monsters[k].type = MonsterType::Firetrooper;
 				//cout << (int)map.monsters[k].type << endl;
-				map.monsters[k].location = &map.room[i];
+				map.monsters[k].location = &map.rooms[i];
 				++monsters_counter;
 			}
 		}
 		temp_line_location.clear();
 	}
 	cout << "Monsters in total: " << monsters_counter << endl;
-	//Help needed: хочется получать из ургументов функции
-	ifstream file_connections("connections.txt");
 	vector<string> temp_line_connection;
 	string temp_connection_field;
 
@@ -196,57 +218,57 @@ Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifs
 		}
 		if (temp_line_connection[(int)ConnectionsFile::Direction] == "n")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		} 
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "s")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "w")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].west
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].west
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "e")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].east
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].east
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "u")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].up
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].up
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "d")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].down
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].down
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "nw")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north_west
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north_west
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "se")
 		{
-			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south_east
-				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+			map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south_east
+				= &map.rooms[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
 		}
 		temp_line_connection.clear();
 	}
 
-	file_locations.close();
-	file_connections.close();
-	return map.room;
+	//file_locations.close();
+	//file_connections.close();
+	return map.rooms;
 }
 
 Hero modelHero(Map map) {
 	return map.hero;
 }
-
-Monsters* modelMonster(Map &map, int rooms_arr_length) {
+//TODO: зачем эта функция нужна?
+void modelMonster(Map &map, int rooms_arr_length) {
 	const int num_room_description_fields = 9;
 	map.monsters = new Monsters[rooms_arr_length];
 	ifstream file_locations("locations.txt");
@@ -256,39 +278,46 @@ Monsters* modelMonster(Map &map, int rooms_arr_length) {
 			getline(file_locations, temp_line_reading, ';');
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumShooters) {
 				if (!stoi(temp_line_reading)) {
-					map.monsters[i].location = &map.room[i];
+					map.monsters[i].location = &map.rooms[i];
 					//пока непонятно как должны записываться все параметры монстров.
 					//куда должно записываться количество Стрелков?
 				}
 			}
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumStormtrooper) {
 				if (!stoi(temp_line_reading)) {
-					map.monsters[i].location = &map.room[i];
+					map.monsters[i].location = &map.rooms[i];
 					//пока непонятно как должны записываться все параметры монстров.
 					// куда должно записываться количество Штурмовиков?
 				}
 			}
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumFiretroopers) {
 				if (!stoi(temp_line_reading)) {
-					map.monsters[i].location = &map.room[i];
+					map.monsters[i].location = &map.rooms[i];
 					//пока непонятно как должны записываться все параметры монстров.
 					// куда должно записываться количество Огневиков?
 				}
 			}
 		}
 	}
-	file_locations.close();
-	return map.monsters;
+	//file_locations.close();
 }
 
-Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
-	Map map = {};
+void createGameMap(Map& map, ifstream &file_locations, ifstream& file_connections) {
 	const int rooms_arr_length = countRooms(file_locations);
-	map.room = modelRoom(map, rooms_arr_length /*, file_locations, file_connections*/);//see line 125
-	map.game_start_room = &map.room[0];
+	//возвращаем указатель на чтение файла в самое начало
+	file_locations.clear();
+	file_locations.seekg(0, ios::beg);
+	std::string line;
+	getline(file_locations, line);
+	map.rooms = modelRoom(map, rooms_arr_length, file_locations, file_connections);
+	//Закончили работать с файлами
+	file_locations.close();
+	file_connections.close();
+	
+	map.game_start_room = &map.rooms[0];
 	map.hero = modelHero(map);
-	map.monsters = modelMonster(map, rooms_arr_length);
-	return map;
+	modelMonster(map, rooms_arr_length);
+	
 }
 
 int main(int argc, char** argv) {
@@ -302,49 +331,50 @@ int main(int argc, char** argv) {
 	}
 	catch (const exception& error) {
 		cerr << "Error: " << error.what() << endl;
-		return -1; // Error code - no initial database files.
+		return EXIT_FAILURE;
 	}
 
-	Map map = createGameMap(file_locations, file_connections);
+	Map map = {};
+	createGameMap(map, file_locations, file_connections);
 
 	cout << "\nСТАРТОВАЯ ЛОКАЦИЯ:\n";
 	cout << map.game_start_room->long_desc << endl;
 
 	cout << "\nЧИТАЕМ ЛОКАЦИИ:\n";
 	for (int i = 0; i < 31; ++i) {
-		cout << map.room[i].short_desc << "; " << map.room[i].long_desc << "; ";
-			if (map.room[i].north != NULL) {
-				cout << "n-" << map.room[i].north << "; ";
+		cout << map.rooms[i].short_desc << "; " << map.rooms[i].long_desc << "; ";
+			if (map.rooms[i].north != NULL) {
+				cout << "n-" << map.rooms[i].north << "; ";
 			}
-			if (map.room[i].north_west != NULL) {
-				cout << "n_w-" << map.room[i].north_west << "; ";
+			if (map.rooms[i].north_west != NULL) {
+				cout << "n_w-" << map.rooms[i].north_west << "; ";
 			}
-			if (map.room[i].south != NULL) {
-				cout << "s-" << map.room[i].south << "; ";
+			if (map.rooms[i].south != NULL) {
+				cout << "s-" << map.rooms[i].south << "; ";
 			}
-			if (map.room[i].south_east != NULL) {
-				cout << "s_e-" << map.room[i].south_east << "; ";
+			if (map.rooms[i].south_east != NULL) {
+				cout << "s_e-" << map.rooms[i].south_east << "; ";
 			}
-			if (map.room[i].west != NULL) {
-				cout << "w-" << map.room[i].west << "; ";
+			if (map.rooms[i].west != NULL) {
+				cout << "w-" << map.rooms[i].west << "; ";
 			}
-			if (map.room[i].east != NULL) {
-				cout << "e-" << map.room[i].east << "; ";
+			if (map.rooms[i].east != NULL) {
+				cout << "e-" << map.rooms[i].east << "; ";
 			}
-			if (map.room[i].up != NULL) {
-				cout << "u-" << map.room[i].up << "; ";
+			if (map.rooms[i].up != NULL) {
+				cout << "u-" << map.rooms[i].up << "; ";
 			}
-			if (map.room[i].down != NULL) {
-				cout << "d-" << map.room[i].down << "; ";
+			if (map.rooms[i].down != NULL) {
+				cout << "d-" << map.rooms[i].down << "; ";
 			}
-			cout << map.room[i].battle_size << endl;
+			cout << map.rooms[i].battle_size << endl;
 	}
 	cout << "\nЧИТАЕМ МОНСТРОВ:\n";
 	for (int i = 0; i < 20; ++i) {
 		cout << (int)map.monsters[i].type << " - " << map.monsters[i].location << endl;
 	}
 	
-	delete[] map.room;
+	delete[] map.rooms;
 	delete[] map.monsters;
-	return 0;
+	return EXIT_SUCCESS;
 }
