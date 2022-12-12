@@ -1,154 +1,244 @@
 // New_mind_beta.1: create map, add functionality for moving around the map.
 
 #include <Windows.h>
+#include <exception>
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <string>
 
 using namespace std;
 
-// Модель локации игры
+// РњРѕРґРµР»СЊ Р»РѕРєР°С†РёРё РёРіСЂС‹
 struct Room {
-	string short_desc;				// краткое описание локации
-	string long_desc;				// полное описание локации
-	Room* north = nullptr;			// указатель локации на севере
-	Room* south = nullptr;			// указатель локации на юге
-	Room* west = nullptr;			// указатель локации на западе
-	Room* east = nullptr;			// указатель локации на востоке
-	Room* down = nullptr;			// указатель локации внизу
-	Room* up = nullptr;				// указатель локации вверху
-	const int battle_size = 20;		// размер локации боя
+	string short_desc;				// РєСЂР°С‚РєРѕРµ РѕРїРёСЃР°РЅРёРµ Р»РѕРєР°С†РёРё
+	string long_desc;				// РїРѕР»РЅРѕРµ РѕРїРёСЃР°РЅРёРµ Р»РѕРєР°С†РёРё
+	Room* north = nullptr;			// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° СЃРµРІРµСЂРµ
+	Room* south = nullptr;			// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° СЋРіРµ
+	Room* west = nullptr;			// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° Р·Р°РїР°РґРµ
+	Room* east = nullptr;			// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° РІРѕСЃС‚РѕРєРµ
+	Room* down = nullptr;			// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РІРЅРёР·Сѓ
+	Room* up = nullptr;				// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РІРІРµСЂС…Сѓ
+	Room* north_west = nullptr;		// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° СЃРµРІРµСЂРѕ-Р·Р°РїР°РґРµ
+	Room* south_east = nullptr;		// СѓРєР°Р·Р°С‚РµР»СЊ Р»РѕРєР°С†РёРё РЅР° СЋРіРѕ-РІРѕСЃС‚РѕРєРµ
+	const int battle_size = 20;		// СЂР°Р·РјРµСЂ Р»РѕРєР°С†РёРё Р±РѕСЏ
 };
 
-// Список типов оружия
+// РЎРїРёСЃРѕРє С‚РёРїРѕРІ РѕСЂСѓР¶РёСЏ
 enum class Weapon {
-	RoboticRevolver, //роботизированный револьвер
-	CryoKnife,       //крио-нож
+	RoboticRevolver, //СЂРѕР±РѕС‚РёР·РёСЂРѕРІР°РЅРЅС‹Р№ СЂРµРІРѕР»СЊРІРµСЂ
+	CryoKnife,       //РєСЂРёРѕ-РЅРѕР¶
 };
 
-// Модель главного героя
+// РњРѕРґРµР»СЊ РіР»Р°РІРЅРѕРіРѕ РіРµСЂРѕСЏ
 struct Hero {
-	Weapon selected_Weapon;	// экипированное оружие ГГ
-	Room* location;			// локация нахождения ГГ
-	int energy;				// кол-во текущей энергии ГГ
-	int HP;					// кол-во текущего HP ГГ
+	Weapon selected_Weapon;	// СЌРєРёРїРёСЂРѕРІР°РЅРЅРѕРµ РѕСЂСѓР¶РёРµ Р“Р“
+	Room* location;			// Р»РѕРєР°С†РёСЏ РЅР°С…РѕР¶РґРµРЅРёСЏ Р“Р“
+	int energy;				// РєРѕР»-РІРѕ С‚РµРєСѓС‰РµР№ СЌРЅРµСЂРіРёРё Р“Р“
+	int HP;					// РєРѕР»-РІРѕ С‚РµРєСѓС‰РµРіРѕ HP Р“Р“
 };
 
-// Список типов движения противника
+// РЎРїРёСЃРѕРє С‚РёРїРѕРІ РґРІРёР¶РµРЅРёСЏ РїСЂРѕС‚РёРІРЅРёРєР°
 enum class MonsterNavigation {
-	Patrolling,	// Патрулирование - враг движется по локации взад-вперёд по определённой траектории ?
-	Standing,	// Стоит на месте - монстр статичен до начала боя
-	Chasing,	// Преследование - монстр преследует ГГ, навязывая бой
+	Patrolling,	// РџР°С‚СЂСѓР»РёСЂРѕРІР°РЅРёРµ - РІСЂР°Рі РґРІРёР¶РµС‚СЃСЏ РїРѕ Р»РѕРєР°С†РёРё РІР·Р°Рґ-РІРїРµСЂС‘Рґ РїРѕ РѕРїСЂРµРґРµР»С‘РЅРЅРѕР№ С‚СЂР°РµРєС‚РѕСЂРёРё ?
+	Standing,	// РЎС‚РѕРёС‚ РЅР° РјРµСЃС‚Рµ - РјРѕРЅСЃС‚СЂ СЃС‚Р°С‚РёС‡РµРЅ РґРѕ РЅР°С‡Р°Р»Р° Р±РѕСЏ
+	Chasing,	// РџСЂРµСЃР»РµРґРѕРІР°РЅРёРµ - РјРѕРЅСЃС‚СЂ РїСЂРµСЃР»РµРґСѓРµС‚ Р“Р“, РЅР°РІСЏР·С‹РІР°СЏ Р±РѕР№
 };
 
-// Список типов поведения противника
+// РЎРїРёСЃРѕРє С‚РёРїРѕРІ РїРѕРІРµРґРµРЅРёСЏ РїСЂРѕС‚РёРІРЅРёРєР°
 enum class BattleBehavior {
-	ShootingPreparation,	// Готовится к стрельбе
-	GetingClose,			// Приближается к ГГ
-	GetingAway,				// Отдаляется от ГГ
-	Waiting,				// Выжидает - пропускает ход для приобритения тактичекского преимущества
+	ShootingPreparation,	// Р“РѕС‚РѕРІРёС‚СЃСЏ Рє СЃС‚СЂРµР»СЊР±Рµ
+	GetingClose,			// РџСЂРёР±Р»РёР¶Р°РµС‚СЃСЏ Рє Р“Р“
+	GetingAway,				// РћС‚РґР°Р»СЏРµС‚СЃСЏ РѕС‚ Р“Р“
+	Waiting,				// Р’С‹Р¶РёРґР°РµС‚ - РїСЂРѕРїСѓСЃРєР°РµС‚ С…РѕРґ РґР»СЏ РїСЂРёРѕР±СЂРёС‚РµРЅРёСЏ С‚Р°РєС‚РёС‡РµРєСЃРєРѕРіРѕ РїСЂРµРёРјСѓС‰РµСЃС‚РІР°
 };
 
-// Список типов противника
+// РЎРїРёСЃРѕРє С‚РёРїРѕРІ РїСЂРѕС‚РёРІРЅРёРєР°
 enum class MonsterType {
-	Stormtrooper,	// Штурмовик
-	Firetrooper,	// Огневик
-	LevelBoss,		// Финальный Босс Игры
-	Shooter,		// Стрелок
+	Stormtrooper,	// РЁС‚СѓСЂРјРѕРІРёРє
+	Firetrooper,	// РћРіРЅРµРІРёРє
+	LevelBoss,		// Р¤РёРЅР°Р»СЊРЅС‹Р№ Р‘РѕСЃСЃ РРіСЂС‹
+	Shooter,		// РЎС‚СЂРµР»РѕРє
 };
 
-// Модель юнита противника
+// РњРѕРґРµР»СЊ СЋРЅРёС‚Р° РїСЂРѕС‚РёРІРЅРёРєР°
 struct Monsters {
-	int HP = 0;									// Запас HP монстра
-	int gives_energy_crystals = 0;				// Кол-во кристалов получаемых после победы над монстром
-	MonsterType type = {};						// Тип монстра
-	Room* location = {};						// Локация расположения монстра
-	MonsterNavigation navigation_state = {};	// Тип поведения монстра вне боя
-	bool is_pursuer = false;					// Является ли монстр преследователем
-	BattleBehavior behavor_state = {};			// Тип поведения монстра в бою
+	int HP = 0;									// Р—Р°РїР°СЃ HP РјРѕРЅСЃС‚СЂР°
+	int gives_energy_crystals = 0;				// РљРѕР»-РІРѕ РєСЂРёСЃС‚Р°Р»РѕРІ РїРѕР»СѓС‡Р°РµРјС‹С… РїРѕСЃР»Рµ РїРѕР±РµРґС‹ РЅР°Рґ РјРѕРЅСЃС‚СЂРѕРј
+	MonsterType type = {};						// РўРёРї РјРѕРЅСЃС‚СЂР°
+	Room* location = NULL;						// Р›РѕРєР°С†РёСЏ СЂР°СЃРїРѕР»РѕР¶РµРЅРёСЏ РјРѕРЅСЃС‚СЂР°
+	MonsterNavigation navigation_state = {};	// РўРёРї РїРѕРІРµРґРµРЅРёСЏ РјРѕРЅСЃС‚СЂР° РІРЅРµ Р±РѕСЏ
+	bool is_pursuer = false;					// РЇРІР»СЏРµС‚СЃСЏ Р»Рё РјРѕРЅСЃС‚СЂ РїСЂРµСЃР»РµРґРѕРІР°С‚РµР»РµРј
+	BattleBehavior behavor_state = {};			// РўРёРї РїРѕРІРµРґРµРЅРёСЏ РјРѕРЅСЃС‚СЂР° РІ Р±РѕСЋ
 };
 
-// Список входных параметров файла locations.txt
+// РЎРїРёСЃРѕРє РІС…РѕРґРЅС‹С… РїР°СЂР°РјРµС‚СЂРѕРІ С„Р°Р№Р»Р° locations.txt
 enum class LocationsFile {
-	IDnumber,			// ID локации
-	ShortDescription,	// Короткое описание локации
-	LongDescription,	// Полное описание локации
-	IDdoor,				// ID-двери
-	IDkey,				// ID-ключа
-	NumShooters,		// Кол-во стрелков
-	NumStormtrooper,	// Кол-во штурмовиков
-	NumFiretroopers,	// Кол-во огневиков
-	NumLootboxes		// Кол-во лутбоксов
+	IDnumber,			// ID Р»РѕРєР°С†РёРё
+	ShortDescription,	// РљРѕСЂРѕС‚РєРѕРµ РѕРїРёСЃР°РЅРёРµ Р»РѕРєР°С†РёРё
+	LongDescription,	// РџРѕР»РЅРѕРµ РѕРїРёСЃР°РЅРёРµ Р»РѕРєР°С†РёРё
+	IDdoor,				// ID-РґРІРµСЂРё
+	IDkey,				// ID-РєР»СЋС‡Р°
+	NumShooters,		// РљРѕР»-РІРѕ СЃС‚СЂРµР»РєРѕРІ
+	NumStormtrooper,	// РљРѕР»-РІРѕ С€С‚СѓСЂРјРѕРІРёРєРѕРІ
+	NumFiretroopers,	// РљРѕР»-РІРѕ РѕРіРЅРµРІРёРєРѕРІ
+	NumLootboxes		// РљРѕР»-РІРѕ Р»СѓС‚Р±РѕРєСЃРѕРІ
 };
 
-// Список входных параметров файла connections.txt
+// РЎРїРёСЃРѕРє РІС…РѕРґРЅС‹С… РїР°СЂР°РјРµС‚СЂРѕРІ С„Р°Р№Р»Р° connections.txt
 enum class ConnectionsFile {
-	IDfrom,		// ID локации "из"
-	IDto,		// ID локации "в"
-	North,		// Направление на север
-	South,		// Направление на юг
-	West,		// Направление на запад
-	East,		// Направление на восток
+	IDfrom,		// ID Р»РѕРєР°С†РёРё "РёР·"
+	IDto,		// ID Р»РѕРєР°С†РёРё "РІ"
+	Direction	// РќР°РїСЂР°РІР»РµРЅРёРµ
 };
 
-// Обобщающая модель игры
+// РћР±РѕР±С‰Р°СЋС‰Р°СЏ РјРѕРґРµР»СЊ РёРіСЂС‹
 struct Map {
-	Room* room;			// Сводная модель описания всех локаций игры
-	Room* start_room;	// Локация начала игры ГГ			<<<--- Имеется в виду начало игры с сохранения?
-	Hero hero;			// Сводная модель описания ГГ
-	Monsters* monsters; // Сводная модель описания всех монстров в игре
+	Room* room;				// РЎРІРѕРґРЅР°СЏ РјРѕРґРµР»СЊ РѕРїРёСЃР°РЅРёСЏ РІСЃРµС… Р»РѕРєР°С†РёР№ РёРіСЂС‹
+	Room* game_start_room;	// Р›РѕРєР°С†РёСЏ РЅР°С‡Р°Р»Р° РёРіСЂС‹ Р“Р“
+	Hero hero;				// РЎРІРѕРґРЅР°СЏ РјРѕРґРµР»СЊ РѕРїРёСЃР°РЅРёСЏ Р“Р“
+	Monsters* monsters;		// РЎРІРѕРґРЅР°СЏ РјРѕРґРµР»СЊ РѕРїРёСЃР°РЅРёСЏ РІСЃРµС… РјРѕРЅСЃС‚СЂРѕРІ РІ РёРіСЂРµ
 };
 
-const int countRooms() {
-	int rooms_arr_length = 0;
-	ifstream file_locations("locations.txt");
+void fileOpenCheck(ifstream& file_locations, ifstream& file_connections) {
 	if (!file_locations.is_open()) {
-		cout << "Check if you have the \"locations.txt\" file within the game folder!" << endl;
-	} else {
-		char separation_symbol = ';';
-		int counter_separation_symbol = 0;
-		int counter = 0;
-		while (!file_locations.eof()) {
-			string word;
-			file_locations >> word;
-			for (const char chr : word) {
-				if (chr == separation_symbol) {
-					++counter_separation_symbol;
-				}
-			}
-		}
-		const int num_room_description_fields = 9;
-		rooms_arr_length = (counter_separation_symbol) / num_room_description_fields;
+		throw exception("File \"locations.txt\" was not found!");
 	}
+	if (!file_connections.is_open()) {
+		throw exception("File \"connections.txt\" was not found!");
+	}
+	return;
+}
+
+const int countRooms(ifstream& file_locations) {
+	const int num_of_reading_block = 9; // each line has 9 blocks of reading
+	int counter_reading_block = 0;
+	char separation_symbol = ';';
+	string reading_block;
+	while (!file_locations.eof()) {
+		getline(file_locations, reading_block, separation_symbol);
+		++counter_reading_block;
+	}
+	const int rooms_arr_length = (counter_reading_block / num_of_reading_block);
+	//cout << counter_reading_block <<  " - " << rooms_arr_length << endl;
 	file_locations.close();
 	return rooms_arr_length;
 }
 
-Room* modelRoom(Map &map, int rooms_arr_length) {
-	const int num_room_description_fields = 9;
+// Question: РЅРµ РїРѕР»СѓС‡Р°РµС‚СЃСЏ РєРѕСЂСЂРµРєС‚РЅРѕ РїРµСЂРµРґР°С‚СЊ Р°СЂРіСѓРјРµРЅС‚Р°РјРё ifstream &file_locations, ifstream &file_connections!!!
+// РїСЂРѕРёСЃС…РѕРґРёС‚ С‡С‚РµРЅРёРµ РїСѓСЃС‚С‹С… РїРѕР»РµР№ ...
+
+Room* modelRoom(Map &map, int rooms_arr_length /*, ifstream &file_locations, ifstream &file_connections*/) {
+	const int num_of_location_fields = 9; // each location line has 9 blocks of reading
+	const int num_of_connection_fields = 3; // each connection line has 3 blocks of reading
 	map.room = new Room[rooms_arr_length];
-	map.monsters = new Monsters[rooms_arr_length];
-	ifstream file_locations("locations.txt");
-	string temp_line_reading;
+	map.monsters = new Monsters[100]; // Let's take an array of 100 units.
+
+	ifstream file_locations("locations.txt"); //Help needed: С…РѕС‡РµС‚СЃСЏ РїРѕР»СѓС‡Р°С‚СЊ РёР· СѓСЂРіСѓРјРµРЅС‚РѕРІ С„СѓРЅРєС†РёРё
+	vector<string> temp_line_location;
+	string temp_location_field;
+	int monsters_counter = 0;
 	for (int i = 0; i < rooms_arr_length; ++i) {
-		for (int j = 0; j < num_room_description_fields; ++j) {
-			getline(file_locations, temp_line_reading, ';');
-			if (static_cast<LocationsFile>(j) == LocationsFile::ShortDescription) {
-				map.room[i].short_desc = temp_line_reading;
-			}
-			if (static_cast<LocationsFile>(j) == LocationsFile::LongDescription) {
-				map.room[i].long_desc = temp_line_reading;
+		for (int j = 0; j < num_of_location_fields; ++j) {
+			getline(file_locations, temp_location_field, ';');
+			temp_line_location.push_back(temp_location_field);
+		}
+		map.room[i].short_desc	= temp_line_location[(int)LocationsFile::ShortDescription];
+		map.room[i].long_desc	= temp_line_location[(int)LocationsFile::LongDescription];
+
+		//РЎР§РРўР«Р’РђР•Рњ Р Р—РђРџРРЎР«Р’РђР•Рњ РњРћРќРЎРўР РћР’
+		//HELP NEEDED: РњРѕРЅСЃС‚СЂС‹ РѕС‡РµРІРёРґРЅРѕ Р·Р°РїРёСЃС‹РІР°СЋС‚СЃСЏ РІ РјР°СЃСЃРёРІ РЅРµРєРѕСЂРµРєС‚РЅРѕ РїРѕ РёРЅРґРµРєСЃСѓ Рё С‚РёРїСѓ РјРѕРЅСЃС‚СЂР°.
+		if (stoi(temp_line_location[(int)LocationsFile::NumShooters]) != 0)
+		{
+			const int num_shooters = stoi(temp_line_location[(int)LocationsFile::NumShooters]);
+			//cout << "Shooters: " << num_shooters << endl;
+			for (int k = 0; k < num_shooters; ++k) {
+				map.monsters[k].type = MonsterType::Shooter;
+				//cout << (int)map.monsters[k].type << endl;
+				map.monsters[k].location = &map.room[i];
+				++monsters_counter;
 			}
 		}
+		if (stoi(temp_line_location[(int)LocationsFile::NumStormtrooper]) != 0)
+		{
+			const int num_stormtrooper = stoi(temp_line_location[(int)LocationsFile::NumStormtrooper]);
+			//cout << "Stormtrooper: " << num_stormtrooper << endl;
+			for (int k = 0; k < num_stormtrooper; ++k) {
+				map.monsters[k].type = MonsterType::Stormtrooper;
+				//cout << (int)map.monsters[k].type << endl;
+				map.monsters[k].location = &map.room[i];
+				++monsters_counter;
+			}
+		}
+		if (stoi(temp_line_location[(int)LocationsFile::NumFiretroopers]) != 0)
+		{
+			const int num_firetroopers = stoi(temp_line_location[(int)LocationsFile::NumFiretroopers]);
+			//cout << "Firetroopers: " << num_firetroopers << endl;
+			for (int k = 0; k < num_firetroopers; ++k) {
+				map.monsters[k].type = MonsterType::Firetrooper;
+				//cout << (int)map.monsters[k].type << endl;
+				map.monsters[k].location = &map.room[i];
+				++monsters_counter;
+			}
+		}
+		temp_line_location.clear();
 	}
-	map.room->north;	// пока непонятно как считать из connections.txt - ???
-	map.room->south;	// из одной начально локации ведут пути в несколько других
-	map.room->west;		// соответственно надо понимать как считывать и распределять строки ...
-	map.room->east;		//
-	map.room->down;		//
-	map.room->up;		//
+	cout << "Monsters in total: " << monsters_counter << endl;
+	//Help needed: С…РѕС‡РµС‚СЃСЏ РїРѕР»СѓС‡Р°С‚СЊ РёР· СѓСЂРіСѓРјРµРЅС‚РѕРІ С„СѓРЅРєС†РёРё
+	ifstream file_connections("connections.txt");
+	vector<string> temp_line_connection;
+	string temp_connection_field;
+
+	while (!file_connections.eof()) {
+		for (int j = 0; j < num_of_connection_fields; ++j) {
+			getline(file_connections, temp_connection_field, ';');
+			temp_line_connection.push_back(temp_connection_field);
+		}
+		if (temp_line_connection[(int)ConnectionsFile::Direction] == "n")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		} 
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "s")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "w")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].west
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "e")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].east
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "u")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].up
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "d")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].down
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "nw")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].north_west
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		else if (temp_line_connection[(int)ConnectionsFile::Direction] == "se")
+		{
+			map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDfrom])].south_east
+				= &map.room[stoi(temp_line_connection[(int)ConnectionsFile::IDto])];
+		}
+		temp_line_connection.clear();
+	}
 
 	file_locations.close();
+	file_connections.close();
 	return map.room;
 }
 
@@ -167,22 +257,22 @@ Monsters* modelMonster(Map &map, int rooms_arr_length) {
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumShooters) {
 				if (!stoi(temp_line_reading)) {
 					map.monsters[i].location = &map.room[i];
-					//пока непонятно как должны записываться все параметры монстров.
-					//куда должно записываться количество Стрелков?
+					//РїРѕРєР° РЅРµРїРѕРЅСЏС‚РЅРѕ РєР°Рє РґРѕР»Р¶РЅС‹ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РІСЃРµ РїР°СЂР°РјРµС‚СЂС‹ РјРѕРЅСЃС‚СЂРѕРІ.
+					//РєСѓРґР° РґРѕР»Р¶РЅРѕ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РєРѕР»РёС‡РµСЃС‚РІРѕ РЎС‚СЂРµР»РєРѕРІ?
 				}
 			}
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumStormtrooper) {
 				if (!stoi(temp_line_reading)) {
 					map.monsters[i].location = &map.room[i];
-					//пока непонятно как должны записываться все параметры монстров.
-					// куда должно записываться количество Штурмовиков?
+					//РїРѕРєР° РЅРµРїРѕРЅСЏС‚РЅРѕ РєР°Рє РґРѕР»Р¶РЅС‹ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РІСЃРµ РїР°СЂР°РјРµС‚СЂС‹ РјРѕРЅСЃС‚СЂРѕРІ.
+					// РєСѓРґР° РґРѕР»Р¶РЅРѕ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РєРѕР»РёС‡РµСЃС‚РІРѕ РЁС‚СѓСЂРјРѕРІРёРєРѕРІ?
 				}
 			}
 			if (static_cast<LocationsFile>(j) == LocationsFile::NumFiretroopers) {
 				if (!stoi(temp_line_reading)) {
 					map.monsters[i].location = &map.room[i];
-					//пока непонятно как должны записываться все параметры монстров.
-					// куда должно записываться количество Огневиков?
+					//РїРѕРєР° РЅРµРїРѕРЅСЏС‚РЅРѕ РєР°Рє РґРѕР»Р¶РЅС‹ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РІСЃРµ РїР°СЂР°РјРµС‚СЂС‹ РјРѕРЅСЃС‚СЂРѕРІ.
+					// РєСѓРґР° РґРѕР»Р¶РЅРѕ Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ РєРѕР»РёС‡РµСЃС‚РІРѕ РћРіРЅРµРІРёРєРѕРІ?
 				}
 			}
 		}
@@ -191,13 +281,13 @@ Monsters* modelMonster(Map &map, int rooms_arr_length) {
 	return map.monsters;
 }
 
-Map createGameMap() {
-	Map map{};
-		const int rooms_arr_length = countRooms();
-		map.room = modelRoom(map, rooms_arr_length);
-		map.start_room = nullptr; // Какая локация должна быть здесь? Стартовая?
-		map.hero = modelHero(map);
-		map.monsters = modelMonster(map, rooms_arr_length);
+Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
+	Map map = {};
+	const int rooms_arr_length = countRooms(file_locations);
+	map.room = modelRoom(map, rooms_arr_length /*, file_locations, file_connections*/);//see line 125
+	map.game_start_room = &map.room[0];
+	map.hero = modelHero(map);
+	map.monsters = modelMonster(map, rooms_arr_length);
 	return map;
 }
 
@@ -205,10 +295,54 @@ int main(int argc, char** argv) {
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 
-	Map map = createGameMap();
+	ifstream file_locations("locations.txt");
+	ifstream file_connections("connections.txt");
+	try{
+		fileOpenCheck(file_locations, file_connections);
+	}
+	catch (const exception& error) {
+		cerr << "Error: " << error.what() << endl;
+		return -1; // Error code - no initial database files.
+	}
 
-	cout << map.room[0].short_desc << " - " << map.room[0].long_desc << endl;
-	cout << map.monsters[0].location->short_desc << endl;
+	Map map = createGameMap(file_locations, file_connections);
+
+	cout << "\nРЎРўРђР РўРћР’РђРЇ Р›РћРљРђР¦РРЇ:\n";
+	cout << map.game_start_room->long_desc << endl;
+
+	cout << "\nР§РРўРђР•Рњ Р›РћРљРђР¦РР:\n";
+	for (int i = 0; i < 31; ++i) {
+		cout << map.room[i].short_desc << "; " << map.room[i].long_desc << "; ";
+			if (map.room[i].north != NULL) {
+				cout << "n-" << map.room[i].north << "; ";
+			}
+			if (map.room[i].north_west != NULL) {
+				cout << "n_w-" << map.room[i].north_west << "; ";
+			}
+			if (map.room[i].south != NULL) {
+				cout << "s-" << map.room[i].south << "; ";
+			}
+			if (map.room[i].south_east != NULL) {
+				cout << "s_e-" << map.room[i].south_east << "; ";
+			}
+			if (map.room[i].west != NULL) {
+				cout << "w-" << map.room[i].west << "; ";
+			}
+			if (map.room[i].east != NULL) {
+				cout << "e-" << map.room[i].east << "; ";
+			}
+			if (map.room[i].up != NULL) {
+				cout << "u-" << map.room[i].up << "; ";
+			}
+			if (map.room[i].down != NULL) {
+				cout << "d-" << map.room[i].down << "; ";
+			}
+			cout << map.room[i].battle_size << endl;
+	}
+	cout << "\nР§РРўРђР•Рњ РњРћРќРЎРўР РћР’:\n";
+	for (int i = 0; i < 20; ++i) {
+		cout << (int)map.monsters[i].type << " - " << map.monsters[i].location << endl;
+	}
 	
 	delete[] map.room;
 	delete[] map.monsters;
