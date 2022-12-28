@@ -11,6 +11,8 @@
 using namespace std;
 using std::cout;
 
+const int FIELDS_IN_LINE = 9; // A line in the file Locations.txt.
+
 // Модель локации игры
 struct Room {
 	string short_desc = {};			// Краткое описание локации
@@ -35,10 +37,10 @@ enum class Weapon {
 
 // Модель главного героя
 struct Hero {
-	int HP = 100;									// Кол-во текущего HP ГГ
-	int energy = 100;								// Кол-во текущей энергии ГГ
-	Room* location = nullptr;						// Локация нахождения ГГ
-	Weapon selected_Weapon = Weapon::BareFists;		// Экипированное оружие ГГ
+	int HP = NULL;				// Кол-во текущего HP ГГ
+	int energy = NULL;			// Кол-во текущей энергии ГГ
+	Room* location = nullptr;	// Локация нахождения ГГ
+	Weapon selected_Weapon;		// Экипированное оружие ГГ
 };
 
 // Список типов движения противника
@@ -71,7 +73,7 @@ struct Monsters {
 	int HP = 0;									// Запас HP монстра
 	int gives_energy_crystals = 0;				// Кол-во кристалов, получаемых после победы над монстром
 	MonsterType type = {};						// Тип монстра
-	Room* room = nullptr;					// Локация расположения монстра
+	Room* room = nullptr;						// Локация расположения монстра
 	MonsterNavigation navigation_state = {};	// Тип поведения монстра вне боя
 	bool is_pursuer = false;					// Является ли монстр преследователем
 	BattleBehavior behavor_state = {};			// Тип поведения монстра в бою
@@ -86,7 +88,7 @@ enum class Locations {
 	IDdoor,				// ID-двери
 	IDkey,				// ID-ключа
 	NumShooters,		// Кол-во стрелков
-	NumStormtrooper,	// Кол-во штурмовиков
+	NumStormtroopers,	// Кол-во штурмовиков
 	NumFiretroopers,	// Кол-во огневиков
 	NumLootboxes		// Кол-во лутбоксов
 };
@@ -105,7 +107,7 @@ struct Map {
 	Room* rooms = nullptr;					// Сводная модель описания всех локаций игры
 	Room* game_start_room = nullptr;		// Локация начала игры ГГ
 	Hero hero = {};							// Сводная модель описания ГГ
-	Monsters* monsters = {};				// Сводная модель описания всех монстров в игре
+	Monsters* monsters = nullptr;			// Сводная модель описания всех монстров в игре
 };
 
 // Проверка доступности исходных файлов "locations.txt" и "connections.txt".
@@ -128,7 +130,7 @@ void setCarriageAtBegining(ifstream& file) {
 	return;
 }
 
-// Считывание файла "locations.txt", чобы узнать общее кол-во локаций на карте.
+// Считывание файла "locations.txt", чобы узнать общее кол-во (строк = локаций) на карте.
 const int countRooms(ifstream &file_locations) {
 	setCarriageAtBegining(file_locations);
 
@@ -136,28 +138,34 @@ const int countRooms(ifstream &file_locations) {
 	int total_rooms_on_map = NULL;
 	while (!file_locations.eof()) {
 		getline(file_locations, line);
-		++total_rooms_on_map;
+		if (!line.empty()) {
+			++total_rooms_on_map;
+		}
 	}
 	return total_rooms_on_map;
 }
 
 // Считывание файла "locations.txt", чобы узнать общее кол-во монстров.
 const int counMonsters(ifstream& file_locations) {
-	setCarriageAtBegining(file_locations);
-
 	int total_monsters_on_map = NULL;
 	std::string line, box;
-	vector<string> row;
+	vector<string> temp_line;
+
+	setCarriageAtBegining(file_locations);
 	while (!file_locations.eof()) {
 		getline(file_locations, line);
-		stringstream inflow(line);
-		while (getline(inflow, box, ';')) {
-			row.push_back(box);
+		if (!line.empty()) {
+			stringstream inflow(line);
+			while (getline(inflow, box, ';')) {
+				temp_line.push_back(box);
+			}
+			if (temp_line.size() == FIELDS_IN_LINE) {
+				total_monsters_on_map += (stoi(temp_line[(int)Locations::NumShooters])
+										+ stoi(temp_line[(int)Locations::NumStormtroopers])
+										+ stoi(temp_line[(int)Locations::NumFiretroopers]));
+			}
+			temp_line.clear();
 		}
-		total_monsters_on_map += ( stoi(row[(int)Locations::NumShooters])
-								 + stoi(row[(int)Locations::NumStormtrooper])
-								 + stoi(row[(int)Locations::NumFiretroopers]) );
-		row.clear();
 	}
 	return total_monsters_on_map;
 }
@@ -247,8 +255,8 @@ Monsters* modelMonsters(Map &map, ifstream &file_locations) {
 				++arr_counter;
 			}
 		}
-		if (stoi(temp_line[(int)Locations::NumStormtrooper]) != 0) {
-			const int num_stormtrooper = stoi(temp_line[(int)Locations::NumStormtrooper]);
+		if (stoi(temp_line[(int)Locations::NumStormtroopers]) != 0) {
+			const int num_stormtrooper = stoi(temp_line[(int)Locations::NumStormtroopers]);
 			for (int k = 0; k < num_stormtrooper; ++k) {
 				map.monsters[arr_counter].type = MonsterType::Stormtrooper;
 				map.monsters[arr_counter].room = &map.rooms[stoi(temp_line[(int)Locations::ID])];
@@ -259,7 +267,7 @@ Monsters* modelMonsters(Map &map, ifstream &file_locations) {
 		if (stoi(temp_line[(int)Locations::NumFiretroopers]) != 0) {
 			const int num_firetroopers = stoi(temp_line[(int)Locations::NumFiretroopers]);
 			for (int k = 0; k < num_firetroopers; ++k) {
-				map.monsters[arr_counter].type = MonsterType::Firetrooper;// WARNING ???
+				map.monsters[arr_counter].type = MonsterType::Firetrooper;// WARNING, WHY ???
 				map.monsters[arr_counter].room = &map.rooms[stoi(temp_line[(int)Locations::ID])];
 				map.monsters[arr_counter].mark = static_cast<Mark>(k);
 				++arr_counter;
@@ -272,16 +280,17 @@ Monsters* modelMonsters(Map &map, ifstream &file_locations) {
 
 // Генерация и отслеживание модели Главного Героя.
 Hero modelHero(Map &map) {
-	//map.hero.HP = функция, записывающая новое HP ГГ;
-	//map.hero.energy = функция, записывающая новое POW ГГ;
-	//map.hero.selected_Weapon = функция, записывающая экипированое оружие ГГ;
-	//map.hero.location = функция, записывающая новую локацию ГГ;
+	map.hero.HP = 100;								// HP ГГ;
+	map.hero.energy = 100;							// энергия ГГ;
+	map.hero.selected_Weapon = Weapon::BareFists;	// экипированое оружие ГГ;
+	map.hero.location = map.game_start_room;		// месторасположение ГГ;
 	return map.hero;
 }
 
 // Генерация и отслеживание всей игровой карты.
 Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
 	Map map{};
+
 	map.total_rooms_on_map = countRooms(file_locations);
 	map.total_monsters_on_map = counMonsters(file_locations);
 	map.rooms = modelRooms(map, file_locations, file_connections);
@@ -294,6 +303,183 @@ Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
 	map.hero = modelHero(map);
 
 	return map;
+}
+
+// Добавление маркеров монстрам
+string printMonsterMark(Mark monster_mark) {
+	string mark;
+	if (monster_mark == Mark::Red) { mark = "Red"; }
+	else if (monster_mark == Mark::Green) { mark = "Green"; }
+	else if (monster_mark == Mark::Blue) { mark = "Blue"; }
+	else if (monster_mark == Mark::Dark) { mark = "Dark"; }
+	else if (monster_mark == Mark::Orange) { mark = "Orange"; }
+	else if (monster_mark == Mark::White) { mark = "White"; }
+	else if (monster_mark == Mark::Yellow) { mark = "Yellow"; }
+	else if (monster_mark == Mark::Brown) { mark = "Brown"; }
+	else if (monster_mark == Mark::Grey) { mark = "Grey"; }
+	else if (monster_mark == Mark::Purple) { mark = "Purple"; }
+	else if (monster_mark == Mark::Gold) { mark = "Gold"; }
+	else if (monster_mark == Mark::Silver) { mark = "Silver"; }
+	return mark;
+}
+
+// просто декларирование
+void updateMap(Map& map);
+
+// перемещение ГГ по карте
+void runOverMap(Map& map) {
+	string command;
+	while (cout << "Выберите направление: ", cin >> command && command != "x") { // x - exit
+		if (command == "n" || command == "north") {
+			if (map.hero.location->north != nullptr) {
+				map.hero.location = map.hero.location->north;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						if (map.monsters[i].type == MonsterType::Shooter) {
+							cout << "Shooter(" << printMonsterMark(map.monsters[i].mark) << ") | ";
+						}
+						else if (map.monsters[i].type == MonsterType::Stormtrooper) {
+							cout << "Stormtrooper(" << printMonsterMark(map.monsters[i].mark) << ") | ";
+						}
+						else if (map.monsters[i].type == MonsterType::Firetrooper) {
+							cout << "Firetrooper(" << printMonsterMark(map.monsters[i].mark) << ") | ";
+						}
+						else if (map.monsters[i].type == MonsterType::LevelBoss) {
+							cout << "Boss";
+						}
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "s" || command == "south") {
+			if (map.hero.location->south != nullptr) {
+				map.hero.location = map.hero.location->south;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "w" || command == "west") {
+			if (map.hero.location->west != nullptr) {
+				map.hero.location = map.hero.location->west;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "e" || command == "east") {
+			if (map.hero.location->east != nullptr) {
+				map.hero.location = map.hero.location->east;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "d" || command == "down") {
+			if (map.hero.location->down != nullptr) {
+				map.hero.location = map.hero.location->down;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "u" || command == "up") {
+			if (map.hero.location->up != nullptr) {
+				map.hero.location = map.hero.location->up;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "nw" || command == "north-west") {
+			if (map.hero.location->north_west != nullptr) {
+				map.hero.location = map.hero.location->north_west;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else if (command == "se" || command == "south-east") {
+			if (map.hero.location->south_east != nullptr) {
+				map.hero.location = map.hero.location->south_east;
+				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+				cout << "Встречаем: ";
+				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+					if (map.hero.location == map.monsters[i].room) {
+						cout << (int)map.monsters[i].type << ' ';
+					}
+				}
+				cout << endl;
+			}
+			else {
+				cout << "Не могу пройти туда!" << endl;
+			}
+		}
+		else {
+			cout << "Неизвестное направление!\n(Используйте n, s, e, w, nw, se)" << endl;
+		}
+	}
+	updateMap(map);
+	return;
+}
+
+// Обновление Мира в конце хода ГГ
+void updateMap(Map &map) {
+	return;
 }
 
 int main(int argc, char** argv) {
@@ -311,15 +497,8 @@ int main(int argc, char** argv) {
 	}
 
 	Map map = createGameMap(file_locations, file_connections);
-
-	// Пробуем ходить по карте
-	if (1) {
-		string command;
-		cout << map.game_start_room->long_desc << endl;
-		while (cout << "Enter command: ", cin >> command and command != "x") {
-			
-		}
-	}
+	cout << map.game_start_room->short_desc << ' ' << map.game_start_room->long_desc << endl;
+	runOverMap(map);
 
 	// Вспомогательная часть проверки карты
 	if (0) {
