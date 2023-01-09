@@ -1,6 +1,6 @@
 // New_mind_beta.1: create map, add functionality for moving around the map.
 
-#include <Windows.h>
+#include <windows.h>
 #include <exception>
 #include <iostream>
 #include <fstream>
@@ -113,10 +113,10 @@ struct Map {
 // Проверка доступности исходных файлов "locations.txt" и "connections.txt".
 void fileOpenCheck(ifstream& file_locations, ifstream& file_connections) {
 	if (!file_locations.is_open()) {
-		throw exception("File \"locations.txt\" was not found!");
+		throw std::exception("File \"locations.txt\" was not found!");
 	}
 	if (!file_connections.is_open()) {
-		throw exception("File \"connections.txt\" was not found!");
+		throw std::exception("File \"connections.txt\" was not found!");
 	}
 	return;
 }
@@ -146,7 +146,7 @@ const int countRooms(ifstream &file_locations) {
 }
 
 // Считывание файла "locations.txt", чобы узнать общее кол-во монстров.
-const int counMonsters(ifstream& file_locations) {
+const int countMonsters(ifstream& file_locations) {
 	int total_monsters_on_map = NULL;
 	std::string line, box;
 	vector<string> temp_line;
@@ -292,7 +292,7 @@ Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
 	Map map{};
 
 	map.total_rooms_on_map = countRooms(file_locations);
-	map.total_monsters_on_map = counMonsters(file_locations);
+	map.total_monsters_on_map = countMonsters(file_locations);
 	map.rooms = modelRooms(map, file_locations, file_connections);
 	map.monsters = modelMonsters(map, file_locations);
 
@@ -306,7 +306,7 @@ Map createGameMap(ifstream &file_locations, ifstream& file_connections) {
 }
 
 // Добавление маркеров монстрам
-string printMonsterMark(Mark monster_mark) {
+string getMonsterMark(Mark monster_mark) {
 	string mark;
 	if (monster_mark == Mark::Red) { mark = "Red"; }
 	else if (monster_mark == Mark::Green) { mark = "Green"; }
@@ -323,163 +323,372 @@ string printMonsterMark(Mark monster_mark) {
 	return mark;
 }
 
-// просто декларирование
-void updateMap(Map& map);
+enum class Commands { unknown, north, south, west, east, northwest, northeast, southwest, southeast, up, down };
 
-// перемещение ГГ по карте
-void runOverMap(Map& map) {
-	string command;
-	while (cout << "Выберите направление: ", cin >> command && command != "x") { // x - exit
-		if (command == "n" || command == "north") {
-			if (map.hero.location->north != nullptr) {
-				map.hero.location = map.hero.location->north;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						if (map.monsters[i].type == MonsterType::Shooter) {
-							cout << "Shooter(" << printMonsterMark(map.monsters[i].mark) << ") | ";
-						}
-						else if (map.monsters[i].type == MonsterType::Stormtrooper) {
-							cout << "Stormtrooper(" << printMonsterMark(map.monsters[i].mark) << ") | ";
-						}
-						else if (map.monsters[i].type == MonsterType::Firetrooper) {
-							cout << "Firetrooper(" << printMonsterMark(map.monsters[i].mark) << ") | ";
-						}
-						else if (map.monsters[i].type == MonsterType::LevelBoss) {
-							cout << "Boss";
-						}
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "s" || command == "south") {
-			if (map.hero.location->south != nullptr) {
-				map.hero.location = map.hero.location->south;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "w" || command == "west") {
-			if (map.hero.location->west != nullptr) {
-				map.hero.location = map.hero.location->west;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "e" || command == "east") {
-			if (map.hero.location->east != nullptr) {
-				map.hero.location = map.hero.location->east;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "d" || command == "down") {
-			if (map.hero.location->down != nullptr) {
-				map.hero.location = map.hero.location->down;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "u" || command == "up") {
-			if (map.hero.location->up != nullptr) {
-				map.hero.location = map.hero.location->up;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "nw" || command == "north-west") {
-			if (map.hero.location->north_west != nullptr) {
-				map.hero.location = map.hero.location->north_west;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else if (command == "se" || command == "south-east") {
-			if (map.hero.location->south_east != nullptr) {
-				map.hero.location = map.hero.location->south_east;
-				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
-				cout << "Встречаем: ";
-				for (int i = 0; i < map.total_monsters_on_map; ++i) {
-					if (map.hero.location == map.monsters[i].room) {
-						cout << (int)map.monsters[i].type << ' ';
-					}
-				}
-				cout << endl;
-			}
-			else {
-				cout << "Не могу пройти туда!" << endl;
-			}
-		}
-		else {
-			cout << "Неизвестное направление!\n(Используйте n, s, e, w, nw, se)" << endl;
-		}
+// Парсинг команд игрока
+Commands parceUserInput(std::string& user_inpout) {
+	Commands command{};
+	if (user_inpout == "north" || user_inpout == "n") {
+		command = Commands::north;
 	}
-	updateMap(map);
+	else if (user_inpout == "south" || user_inpout == "s") {
+		command = Commands::south;
+	}
+	else if (user_inpout == "west" || user_inpout == "w") {
+		command = Commands::west;
+	}
+	else if (user_inpout == "east" || user_inpout == "e") {
+		command = Commands::east;
+	}
+	else if (user_inpout == "northwest" || user_inpout == "nw") {
+		command = Commands::northwest;
+	}
+	else if (user_inpout == "northeast" || user_inpout == "ne") {
+		command = Commands::northeast;
+	}
+	else if (user_inpout == "southwest" || user_inpout == "sw") {
+		command = Commands::southwest;
+	}
+	else if (user_inpout == "southeast" || user_inpout == "se") {
+		command = Commands::southeast;
+	}
+	else if (user_inpout == "up" || user_inpout == "u") {
+		command = Commands::up;
+	}
+	else if (user_inpout == "down" || user_inpout == "d") {
+		command = Commands::down;
+	} else {
+		command = Commands::unknown;
+	}
+	return command;
+}
+
+/*перемещение ГГ по карте*/
+//void runOverMap(Map& map) {
+//	string command;
+//	while (cout << "Выберите направление: ", cin >> command && command != "x") { // x - exit
+//		if (command == "n" || command == "north" || command == "с" || command == "север") {
+//			if (map.hero.location->north != nullptr) {
+//				map.hero.location = map.hero.location->north;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						if (map.monsters[i].type == MonsterType::Shooter) {
+//							cout << "Shooter(" << getMonsterMark(map.monsters[i].mark) << ") | ";
+//						}
+//						else if (map.monsters[i].type == MonsterType::Stormtrooper) {
+//							cout << "Stormtrooper(" << getMonsterMark(map.monsters[i].mark) << ") | ";
+//						}
+//						else if (map.monsters[i].type == MonsterType::Firetrooper) {
+//							cout << "Firetrooper(" << getMonsterMark(map.monsters[i].mark) << ") | ";
+//						}
+//						else if (map.monsters[i].type == MonsterType::LevelBoss) {
+//							cout << "Boss";
+//						}
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "s" || command == "south") {
+//			if (map.hero.location->south != nullptr) {
+//				map.hero.location = map.hero.location->south;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "w" || command == "west") {
+//			if (map.hero.location->west != nullptr) {
+//				map.hero.location = map.hero.location->west;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "e" || command == "east") {
+//			if (map.hero.location->east != nullptr) {
+//				map.hero.location = map.hero.location->east;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "d" || command == "down") {
+//			if (map.hero.location->down != nullptr) {
+//				map.hero.location = map.hero.location->down;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "u" || command == "up") {
+//			if (map.hero.location->up != nullptr) {
+//				map.hero.location = map.hero.location->up;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "nw" || command == "north-west") {
+//			if (map.hero.location->north_west != nullptr) {
+//				map.hero.location = map.hero.location->north_west;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else if (command == "se" || command == "south-east") {
+//			if (map.hero.location->south_east != nullptr) {
+//				map.hero.location = map.hero.location->south_east;
+//				cout << map.hero.location->short_desc << ' ' << map.hero.location->long_desc << endl;
+//				cout << "Встречаем: ";
+//				for (int i = 0; i < map.total_monsters_on_map; ++i) {
+//					if (map.hero.location == map.monsters[i].room) {
+//						cout << (int)map.monsters[i].type << ' ';
+//					}
+//				}
+//				cout << endl;
+//			}
+//			else {
+//				cout << "Не могу пройти туда!" << endl;
+//			}
+//		}
+//		else {
+//			cout << "Неизвестное направление!\n(Используйте n, s, e, w, nw, se)" << endl;
+//		}
+//	}
+//	updateMap(map);
+//	return;
+//}
+
+// Обновление Монстров в конце хода ГГ
+void updateMonsters(Map &map) {
+
 	return;
 }
 
-// Обновление Мира в конце хода ГГ
-void updateMap(Map &map) {
+// Получение массива монстров в одной локации с ГГ
+Monsters* getMonstersInRoom(Map& map) {
+	int arr_length = 0;
+	for (int i = 0; i < map.total_rooms_on_map; ++i) {
+		if (map.monsters[i].room == map.hero.location) {
+			++arr_length;
+		}
+	}
+	Monsters* monsters_pack = new Monsters[arr_length];
+	for (int i = 0; i < map.total_rooms_on_map; ++i) {
+		if (map.monsters[i].room == map.hero.location) {
+			monsters_pack[--arr_length] = map.monsters[i];
+		}
+	}
+	return monsters_pack;
+}
+
+// Получение метки монстра
+std::string printMarker(Mark marker) {
+	if (marker == Mark::Red) {
+		return " (красный)";
+	}
+	else if (marker == Mark::Green) {
+		return " (зелёный)";
+	}
+	else if (marker == Mark::Blue) {
+		return " (синий)";
+	}
+	else if (marker == Mark::Dark) {
+		return " (чёрный)";
+	}
+	else if (marker == Mark::Orange) {
+		return " (оранжевый)";
+	}
+	else if (marker == Mark::White) {
+		return " (белый)";
+	}
+	else if (marker == Mark::Yellow) {
+		return " (жёлтый)";
+	}
+	else if (marker == Mark::Brown) {
+		return " (коричневый)";
+	}
+	else if (marker == Mark::Grey) {
+		return " (серый)";
+	}
+	else if (marker == Mark::Purple) {
+		return " (сиреневый)";
+	}
+	else if (marker == Mark::Gold) {
+		return " (золотой)";
+	}
+	else if (marker == Mark::Silver) {
+		return " (серебряный)";
+	}
+	else {
+		return "non color";
+	}
+}
+
+string printEncounteredMonsters(Hero& hero, Monsters* monster_in_room) {
+	string monster_description;
+	for (int i = 0; i < 10; ++i) {
+		if (monster_in_room[i].room == hero.location) {
+			if (monster_in_room[i].type == MonsterType::Shooter) {
+				monster_description += "стрелок" + printMarker(monster_in_room[i].mark) + '\n';
+			}
+			if (monster_in_room[i].type == MonsterType::Stormtrooper) {
+				monster_description += "штурмовик" + printMarker(monster_in_room[i].mark) + '\n';
+			}
+			if (monster_in_room[i].type == MonsterType::Firetrooper) {
+				monster_description += "огневик" + printMarker(monster_in_room[i].mark) + '\n';
+			}
+		}
+	}
+	return monster_description;
+}
+
+void processBattle(Hero& hero, Monsters* monsters_in_room) {
+	cout << "\nВКЛЮЧЁН БОЕВОЙ РЕЖИМ!\nВстречен противник:\n";
+	cout << printEncounteredMonsters(hero, monsters_in_room) << endl;
 	return;
+}
+
+// я правильно понимаю, что один цикл сосотоит из:
+// - ход ГГ,
+// - ход Монстров,
+// - возможные события игры?
+std::string game_loop(std::string& user_inpout, Map& map) {
+	std::string output;
+	Commands command = parceUserInput(user_inpout);
+
+	switch (command) {
+		case (Commands::north):
+			if (map.hero.location->north) {
+				map.hero.location = map.hero.location->north;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::south):
+			if (map.hero.location->south) {
+				map.hero.location = map.hero.location->south;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::east):
+			if (map.hero.location->east) {
+				map.hero.location = map.hero.location->east;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::west):
+			if (map.hero.location->west) {
+				map.hero.location = map.hero.location->west;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::northwest):
+			if (map.hero.location->north_west) {
+				map.hero.location = map.hero.location->north_west;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::southeast):
+			if (map.hero.location->south_east) {
+				map.hero.location = map.hero.location->south_east;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::up):
+			if (map.hero.location->up) {
+				map.hero.location = map.hero.location->up;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::down):
+			if (map.hero.location->down) {
+				map.hero.location = map.hero.location->down;
+				output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			} else {
+				output = "Туда не пройти!";
+			} break;
+		case (Commands::unknown):
+			cout << "Неизвестная команда!" << endl;
+			output = (map.hero.location->short_desc + ' ' + map.hero.location->long_desc);
+			break;
+	}
+
+	Monsters* monsters_in_room = getMonstersInRoom(map);
+	bool is_battle_mode = monsters_in_room;
+
+	// Есть ли команды доступные только в боевом режиме?
+	if (is_battle_mode == true) { // <<-- Почему-то пока всегда true, надо разобраться.
+		// Здесь непонятно как и что выводить для склейки.
+		// string = processBattle(); так? - результатом должна быть тоже строка?
+		processBattle(map.hero, monsters_in_room);
+	}
+
+	// string = updateMonsters(); ? результатом должна быть тоже строка?
+	updateMonsters(map);
+
+	return output;
 }
 
 int main(int argc, char** argv) {
@@ -497,63 +706,27 @@ int main(int argc, char** argv) {
 	}
 
 	Map map = createGameMap(file_locations, file_connections);
+
 	cout << map.game_start_room->short_desc << ' ' << map.game_start_room->long_desc << endl;
-	runOverMap(map);
 
-	// Вспомогательная часть проверки карты
-	if (0) {
-		cout << "Всего игровых локаций на карте: ";
-		cout << map.total_rooms_on_map << endl;
+	std::string user_inpout;
+	std::string game_output;
+	bool game_continue = true;
 
-		cout << "Всего монстров на карте: ";
-		cout << map.total_monsters_on_map << endl;
+	while (game_continue) {
+		cout << "Введеите команду: ";
+		cin >> user_inpout;
+		game_output = game_loop(user_inpout, map);
+		cout << game_output << endl;
 
-		cout << "\nСТАРТОВАЯ ЛОКАЦИЯ:\n";
-		cout << map.game_start_room->long_desc << endl;
-
-		cout << "\nЧИТАЕМ ЛОКАЦИИ:\n";
-		for (int i = 0; i < map.total_rooms_on_map; ++i) {
-			cout << (i + 1) << " - " << map.rooms[i].short_desc << "; " << map.rooms[i].long_desc << "; ";
-			if (map.rooms[i].north != NULL) {
-				cout << "n-" << map.rooms[i].north << "; ";
-			}
-			if (map.rooms[i].north_west != NULL) {
-				cout << "n_w-" << map.rooms[i].north_west << "; ";
-			}
-			if (map.rooms[i].south != NULL) {
-				cout << "s-" << map.rooms[i].south << "; ";
-			}
-			if (map.rooms[i].south_east != NULL) {
-				cout << "s_e-" << map.rooms[i].south_east << "; ";
-			}
-			if (map.rooms[i].west != NULL) {
-				cout << "w-" << map.rooms[i].west << "; ";
-			}
-			if (map.rooms[i].east != NULL) {
-				cout << "e-" << map.rooms[i].east << "; ";
-			}
-			if (map.rooms[i].up != NULL) {
-				cout << "u-" << map.rooms[i].up << "; ";
-			}
-			if (map.rooms[i].down != NULL) {
-				cout << "d-" << map.rooms[i].down << "; ";
-			}
-			cout << map.rooms[i].battle_size << endl;
-		}
-
-		cout << "\nЧИТАЕМ МОНСТРОВ:\n";
-		for (int i = 0; i < map.total_monsters_on_map; ++i) {
-			cout << (i + 1)
-				<< " - "
-				<< static_cast<int>(map.monsters[i].type)
-				<< " - "
-				<< static_cast<int>(map.monsters[i].mark)
-				<< " = "
-				<< map.monsters[i].room
-				<< endl;
+		// Пока будем завершать игру через гибель ГГ
+		if (map.hero.HP == 0) {
+			game_continue = false;
+			cout << "ГГ погиб!" << endl;
 		}
 	}
-	
+	cout << "\n=== G A M E  O V E R ===\n" << endl;
+
 	delete[] map.rooms;
 	delete[] map.monsters;
 	return EXIT_SUCCESS;
