@@ -1,4 +1,4 @@
-// New_mind_beta.1: create map, add functionality for moving around the map.
+﻿// New_mind_beta.1: create map, add functionality for moving around the map.
 
 #include <windows.h>
 #include <exception>
@@ -135,6 +135,84 @@ void setCarriageAtBegining(ifstream& file) {
 	std::string line;
 	getline(file, line);
 	return;
+}
+
+#ifdef WIN32
+#include <locale.h>
+#include <vector>
+#include <Windows.h>
+std::string utf8_to_cp1251(std::string const& utf8)
+{
+	if (!utf8.empty())
+	{
+		int wchlen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), utf8.size(), NULL, 0);
+		if (wchlen > 0 && wchlen != 0xFFFD)
+		{
+			std::vector<wchar_t> wbuf(wchlen);
+			int result_u = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), utf8.size(), &wbuf[0], wchlen);
+			if (!result_u) {
+				throw std::runtime_error("utf8_to_cp1251 cannot convert MultiByteToWideChar!");
+			}
+			std::vector<char> buf(wchlen);
+			int result_c = WideCharToMultiByte(1251, 0, &wbuf[0], wchlen, &buf[0], wchlen, 0, 0);
+			if (!result_c) {
+				throw std::runtime_error("utf8_to_cp1251 cannot convert WideCharToMultiByte!");
+			}
+
+			return std::string(&buf[0], wchlen);
+		}
+	}
+	return std::string();
+}
+
+std::string cp1251_to_utf8(const std::string& cp1251) {
+	std::string res;
+	int result_u, result_c;
+	enum { CP1251 = 1251 };
+	result_u = MultiByteToWideChar(CP1251, 0, cp1251.c_str(), -1, 0, 0);
+	if (!result_u) {
+		throw std::runtime_error("cp1251_to_utf8 cannot convert MultiByteToWideChar!");
+	}
+	wchar_t* ures = new wchar_t[result_u];
+	if (!MultiByteToWideChar(CP1251, 0, cp1251.c_str(), -1, ures, result_u)) {
+		delete[] ures;
+		throw std::runtime_error("cp1251_to_utf8 cannot convert MultiByteToWideChar 2!");
+	}
+	result_c = WideCharToMultiByte(CP_UTF8, 0, ures, -1, 0, 0, 0, 0);
+	if (!result_c) {
+		delete[] ures;
+		throw std::runtime_error("cp1251_to_utf8 cannot convert WideCharToMultiByte!");
+	}
+	char* cres = new char[result_c];
+	if (!WideCharToMultiByte(CP_UTF8, 0, ures, -1, cres, result_c, 0, 0)) {
+		delete[] cres;
+		throw std::runtime_error("cp1251_to_utf8 cannot convert WideCharToMultiByte 2!");
+	}
+	delete[] ures;
+	res.append(cres);
+	delete[] cres;
+	return res;
+}
+
+#endif
+
+void printOutput(const std::string& data)
+{
+	std::string output = data;
+#ifdef WIN32
+	output = utf8_to_cp1251(output);
+#endif
+	std::cout << output;
+	std::cout.flush();
+}
+std::string readInput()
+{
+	std::string input;
+	std::getline(std::cin, input);
+#ifdef WIN32
+	input = cp1251_to_utf8(input);
+#endif
+	return input;
 }
 
 // Считывание файла "locations.txt", чобы узнать общее кол-во (строк = локаций) на карте.
@@ -403,7 +481,7 @@ pair<Commands, std::vector<std::string>> parceUserInput(std::string& user_input)
 	std::vector<std::string> command_object{};
 
 	if (!words.empty()) {
-		if (words[0] == "north" || words[0] == "n") {
+		if (words[0] == "north" || words[0] == "n" || words[0] == "север" || words[0] == "с") { //TODO: далее также
 			command = Commands::north;
 		}
 		else if (words[0] == "south" || words[0] == "s") {
@@ -750,9 +828,11 @@ std::string game_loop(std::string& user_inpout, Map& map) {
 			battle_info = "Пропускаем ход.";
 			break;
 		case (Commands::forward):
+			//FIXME: как другие команды
 			std::cout << "Команда в разработке!" << std::endl;
 			break;
 		case (Commands::backward):
+			//FIXME: как другие команды
 			std::cout << "Команда в разработке!" << std::endl;
 			break;
 	}
@@ -775,9 +855,11 @@ std::string game_loop(std::string& user_inpout, Map& map) {
 }
 
 int main(int argc, char** argv) {
-	SetConsoleCP(CP_UTF8);
-	SetConsoleOutputCP(CP_UTF8);
-
+#ifdef WIN32
+	setlocale(LC_ALL, "RUS");
+	system("chcp 1251");
+#endif
+	printOutput("Привет!\n");
 	ifstream file_locations("locations.txt"); 
 	ifstream file_connections("connections.txt");
 	try{
@@ -794,22 +876,22 @@ int main(int argc, char** argv) {
 	map.hero.energy = 40;
 	map.hero.selected_Weapon = Weapon::BareFists;
 
-	cout << map.game_start_room->short_desc << ' ' << map.game_start_room->long_desc << endl;
+	printOutput(map.game_start_room->short_desc + " "+ map.game_start_room->long_desc + "\n");
 
 	std::string user_inpout;
 	std::string game_output;
 	bool game_continue = true;
 
 	while (game_continue) {
-		cout << "Введеите команду: ";
-		getline(cin, user_inpout);
+		printOutput(">");
+		user_inpout = readInput();
 		game_output = game_loop(user_inpout, map);
-		cout << game_output << endl;
+		printOutput(game_output+"\n");
 
 		// Пока будем завершать игру через гибель ГГ
 		if (map.hero.HP == 0) {
 			game_continue = false;
-			cout << "ГГ погиб!" << endl;
+			printOutput("ГГ погиб!\n");
 		}
 	}
 	cout << "\n=== G A M E  O V E R ===\n" << endl;
